@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-multipart
+streamlit
+requests
+opencv-python
+numpy
+python-docx
+Pillow
