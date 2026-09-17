@@ -1,12 +1,14 @@
 import io
 import os
 import uuid
+
 from datetime import datetime, timezone
 from typing import List
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+
 from PIL import Image, ImageChops
 
 from backend import word_diff
@@ -47,18 +49,15 @@ BASE_DIR = os.path.dirname(
     )
 )
 
-
 REPORT_DIR = os.path.join(
     BASE_DIR,
     "reports"
 )
 
-
 UI_REPORT_DIR = os.path.join(
     REPORT_DIR,
     "ui_reports"
 )
-
 
 os.makedirs(
     REPORT_DIR,
@@ -69,6 +68,92 @@ os.makedirs(
     UI_REPORT_DIR,
     exist_ok=True
 )
+
+
+# =========================================================
+# RUN DETAILS - TERMINAL
+# =========================================================
+
+def _print_run_details(
+    status,
+    start_time,
+    end_time,
+    processing_time,
+    actual_count,
+    expected_count,
+    total_processed,
+    images_compared,
+    matched=0,
+    changed=0,
+    missing=0,
+    extra=0
+):
+    print()
+    print("=" * 60)
+    print("COBOL IMAGE COMPARISON - RUN DETAILS")
+    print("=" * 60)
+
+    print(
+        f"Status                  : {status}"
+    )
+
+    print(
+        f"Start Time              : "
+        f"{start_time.strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+
+    print(
+        f"End Time                : "
+        f"{end_time.strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+
+    print(
+        f"Processing Time         : "
+        f"{processing_time:.2f} seconds"
+    )
+
+    print(
+        f"Actual Images           : "
+        f"{actual_count}"
+    )
+
+    print(
+        f"Expected Images         : "
+        f"{expected_count}"
+    )
+
+    print(
+        f"Total Images Processed  : "
+        f"{total_processed}"
+    )
+
+    print(
+        f"Images Compared         : "
+        f"{images_compared}"
+    )
+
+    print(
+        f"Matched                 : "
+        f"{matched}"
+    )
+
+    print(
+        f"Changed                 : "
+        f"{changed}"
+    )
+
+    print(
+        f"Missing                 : "
+        f"{missing}"
+    )
+
+    print(
+        f"Extra                   : "
+        f"{extra}"
+    )
+
+    print("=" * 60)
+    print()
 
 
 # =========================================================
@@ -850,6 +935,146 @@ def _create_word_report(
         f"{report_data['generated_at']}"
     )
 
+    # =====================================================
+    # RUN DETAILS
+    # =====================================================
+
+    run_details = report_data.get(
+        "run_details",
+        {}
+    )
+
+    if run_details:
+
+        document.add_heading(
+            "Run Details",
+            level=1
+        )
+
+        run_table = document.add_table(
+            rows=1,
+            cols=2
+        )
+
+        run_table.alignment = (
+            WD_TABLE_ALIGNMENT.CENTER
+        )
+
+        run_table.style = "Table Grid"
+
+        run_hdr = run_table.rows[0].cells
+
+        run_hdr[0].text = "Run Information"
+        run_hdr[1].text = "Value"
+
+        run_rows = [
+
+            (
+                "Status",
+                run_details.get(
+                    "status",
+                    "-"
+                )
+            ),
+
+            (
+                "Start Time",
+                run_details.get(
+                    "start_time",
+                    "-"
+                )
+            ),
+
+            (
+                "End Time",
+                run_details.get(
+                    "end_time",
+                    "-"
+                )
+            ),
+
+            (
+                "Processing Time",
+                run_details.get(
+                    "processing_time",
+                    "-"
+                )
+            ),
+
+            (
+                "Actual Images",
+                run_details.get(
+                    "actual_images",
+                    0
+                )
+            ),
+
+            (
+                "Expected Images",
+                run_details.get(
+                    "expected_images",
+                    0
+                )
+            ),
+
+            (
+                "Total Images Processed",
+                run_details.get(
+                    "total_images_processed",
+                    0
+                )
+            ),
+
+            (
+                "Images Compared",
+                run_details.get(
+                    "images_compared",
+                    0
+                )
+            ),
+
+            (
+                "Matched",
+                run_details.get(
+                    "matched",
+                    0
+                )
+            ),
+
+            (
+                "Changed",
+                run_details.get(
+                    "changed",
+                    0
+                )
+            ),
+
+            (
+                "Missing",
+                run_details.get(
+                    "missing",
+                    0
+                )
+            ),
+
+            (
+                "Extra",
+                run_details.get(
+                    "extra",
+                    0
+                )
+            ),
+        ]
+
+        for name, value in run_rows:
+
+            row = run_table.add_row().cells
+
+            row[0].text = str(name)
+            row[1].text = str(value)
+
+        document.add_paragraph()
+
     # -----------------------------------------------------
     # Overall summary
     # -----------------------------------------------------
@@ -1366,7 +1591,32 @@ async def compare(
     expected: List[UploadFile] = File(...)
 ):
 
+    # =====================================================
+    # RUN START
+    # =====================================================
+
+    run_start = datetime.now()
+
+    # =====================================================
+    # Initial validation
+    # =====================================================
+
     if not actual:
+
+        run_end = datetime.now()
+
+        _print_run_details(
+            "FAILED",
+            run_start,
+            run_end,
+            (
+                run_end - run_start
+            ).total_seconds(),
+            0,
+            len(expected) if expected else 0,
+            0,
+            0
+        )
 
         raise HTTPException(
             status_code=400,
@@ -1376,6 +1626,21 @@ async def compare(
         )
 
     if not expected:
+
+        run_end = datetime.now()
+
+        _print_run_details(
+            "FAILED",
+            run_start,
+            run_end,
+            (
+                run_end - run_start
+            ).total_seconds(),
+            len(actual) if actual else 0,
+            0,
+            0,
+            0
+        )
 
         raise HTTPException(
             status_code=400,
@@ -1393,7 +1658,6 @@ async def compare(
     for file in actual:
 
         if not file.filename:
-
             continue
 
         actual_bytes[
@@ -1409,7 +1673,6 @@ async def compare(
     for file in expected:
 
         if not file.filename:
-
             continue
 
         expected_bytes[
@@ -1417,6 +1680,21 @@ async def compare(
         ] = await file.read()
 
     if not actual_bytes:
+
+        run_end = datetime.now()
+
+        _print_run_details(
+            "FAILED",
+            run_start,
+            run_end,
+            (
+                run_end - run_start
+            ).total_seconds(),
+            0,
+            len(expected_bytes),
+            0,
+            0
+        )
 
         raise HTTPException(
             status_code=400,
@@ -1426,6 +1704,21 @@ async def compare(
         )
 
     if not expected_bytes:
+
+        run_end = datetime.now()
+
+        _print_run_details(
+            "FAILED",
+            run_start,
+            run_end,
+            (
+                run_end - run_start
+            ).total_seconds(),
+            len(actual_bytes),
+            0,
+            0,
+            0
+        )
 
         raise HTTPException(
             status_code=400,
@@ -1566,7 +1859,6 @@ async def compare(
 
                 actual_url = None
 
-            # Save information for UI
             report.setdefault(
                 "unmatched_actual_details",
                 []
@@ -1657,6 +1949,25 @@ async def compare(
             )
 
         except Exception as exc:
+
+            run_end = datetime.now()
+
+            _print_run_details(
+                "FAILED",
+                run_start,
+                run_end,
+                (
+                    run_end - run_start
+                ).total_seconds(),
+                len(actual_bytes),
+                len(expected_bytes),
+                (
+                    len(actual_bytes)
+                    +
+                    len(expected_bytes)
+                ),
+                report["summary"]["matched"]
+            )
 
             raise HTTPException(
                 status_code=400,
@@ -1810,7 +2121,109 @@ async def compare(
         })
 
     # =====================================================
-    # Word report filename
+    # RUN END
+    #
+    # IMPORTANT:
+    # Calculate these BEFORE creating the Word report
+    # so the same details can be written into the DOCX.
+    # =====================================================
+
+    run_end = datetime.now()
+
+    processing_time = (
+        run_end - run_start
+    ).total_seconds()
+
+    actual_count = len(
+        actual_bytes
+    )
+
+    expected_count = len(
+        expected_bytes
+    )
+
+    total_images_processed = (
+        actual_count +
+        expected_count
+    )
+
+    images_compared = (
+        report[
+            "summary"
+        ]["matched"]
+    )
+
+    # =====================================================
+    # RUN DETAILS
+    # =====================================================
+
+    run_details = {
+
+        "status":
+            "COMPLETED",
+
+        "start_time":
+            run_start.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+
+        "end_time":
+            run_end.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+
+        "processing_time_seconds":
+            round(
+                processing_time,
+                2
+            ),
+
+        "processing_time":
+            f"{processing_time:.2f} seconds",
+
+        "actual_images":
+            actual_count,
+
+        "expected_images":
+            expected_count,
+
+        "total_images_processed":
+            total_images_processed,
+
+        "images_compared":
+            images_compared,
+
+        "matched":
+            report[
+                "summary"
+            ]["matched"],
+
+        "changed":
+            report[
+                "summary"
+            ]["changed"],
+
+        "missing":
+            report[
+                "summary"
+            ]["missing"],
+
+        "extra":
+            report[
+                "summary"
+            ]["extra"]
+    }
+
+    # =====================================================
+    # ADD RUN DETAILS TO REPORT DATA
+    # =====================================================
+
+    report[
+        "run_details"
+    ] = run_details
+
+    # =====================================================
+    # WORD REPORT FILENAME
     # =====================================================
 
     timestamp = datetime.now().strftime(
@@ -1828,7 +2241,7 @@ async def compare(
     )
 
     # =====================================================
-    # Create Word report
+    # CREATE WORD REPORT
     # =====================================================
 
     _create_word_report(
@@ -1837,7 +2250,57 @@ async def compare(
     )
 
     # =====================================================
-    # Streamlit response
+    # TERMINAL RUN DETAILS
+    # =====================================================
+
+    _print_run_details(
+
+        status="COMPLETED",
+
+        start_time=
+            run_start,
+
+        end_time=
+            run_end,
+
+        processing_time=
+            processing_time,
+
+        actual_count=
+            actual_count,
+
+        expected_count=
+            expected_count,
+
+        total_processed=
+            total_images_processed,
+
+        images_compared=
+            images_compared,
+
+        matched=
+            report[
+                "summary"
+            ]["matched"],
+
+        changed=
+            report[
+                "summary"
+            ]["changed"],
+
+        missing=
+            report[
+                "summary"
+            ]["missing"],
+
+        extra=
+            report[
+                "summary"
+            ]["extra"]
+    )
+
+    # =====================================================
+    # STREAMLIT RESPONSE
     # =====================================================
 
     response_pairs = []
@@ -1914,7 +2377,7 @@ async def compare(
         })
 
     # =====================================================
-    # Return
+    # RETURN
     # =====================================================
 
     return {
@@ -1930,6 +2393,9 @@ async def compare(
 
         "download_url":
             f"/reports/{report_filename}",
+
+        "run_details":
+            run_details,
 
         "summary":
             report["summary"],

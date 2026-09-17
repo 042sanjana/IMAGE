@@ -1,6 +1,4 @@
 """
-word_diff.py
-
 Line-by-line, word-by-word comparison between two COBOL screenshot images
 using ONLY Pillow.
 
@@ -10,9 +8,19 @@ Words are detected using pixel geometry.
 """
 
 import difflib
-from typing import List, Dict, Any, Tuple
 
-from PIL import Image, ImageDraw, ImageFont
+from typing import (
+    List,
+    Dict,
+    Any,
+    Tuple
+)
+
+from PIL import (
+    Image,
+    ImageDraw,
+    ImageFont
+)
 
 
 # =========================================================
@@ -78,8 +86,7 @@ def _otsu_threshold(
             break
 
         sum_b += (
-            i *
-            hist[i]
+            i * hist[i]
         )
 
         m_b = (

@@ -3,6 +3,7 @@ Streamlit frontend for the COBOL Image Diff Tool.
 
 Shows:
 
+- Run details
 - Expected image
 - Actual image
 - Difference image
@@ -42,15 +43,9 @@ BACKEND_URL = os.environ.get(
 # =========================================================
 
 st.set_page_config(
-
-    page_title=
-        "COBOL Image Diff Tool",
-
-    page_icon=
-        "🖥️",
-
-    layout=
-        "wide"
+    page_title="COBOL Image Diff Tool",
+    page_icon="🖥️",
+    layout="wide"
 )
 
 
@@ -109,6 +104,30 @@ st.markdown(
     font-weight: 700;
 }
 
+.run-detail-card {
+    padding: 16px;
+    border-radius: 10px;
+    border: 1px solid #d0d7de;
+    background: #f8fafc;
+    margin-bottom: 10px;
+}
+
+.run-detail-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #555;
+}
+
+.run-detail-value {
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+.run-completed {
+    color: #176b2c;
+}
+
 </style>
 """,
     unsafe_allow_html=True
@@ -136,23 +155,15 @@ st.caption(
 # HELPERS
 # =========================================================
 
-def backend_image_url(
-    path: str
-):
+def backend_image_url(path: str):
 
     if not path:
         return None
 
-    if path.startswith(
-        "http://"
-    ):
-
+    if path.startswith("http://"):
         return path
 
-    if path.startswith(
-        "https://"
-    ):
-
+    if path.startswith("https://"):
         return path
 
     return (
@@ -162,16 +173,12 @@ def backend_image_url(
     )
 
 
-def load_image_bytes(
-    path: str
-):
+def load_image_bytes(path: str):
 
     if not path:
         return None
 
-    url = backend_image_url(
-        path
-    )
+    url = backend_image_url(path)
 
     try:
 
@@ -180,11 +187,7 @@ def load_image_bytes(
             timeout=60
         )
 
-        if (
-            response.status_code
-            == 200
-        ):
-
+        if response.status_code == 200:
             return response.content
 
     except requests.RequestException:
@@ -198,9 +201,7 @@ def show_image(
     caption: str
 ):
 
-    image_bytes = load_image_bytes(
-        path
-    )
+    image_bytes = load_image_bytes(path)
 
     if image_bytes:
 
@@ -217,9 +218,7 @@ def show_image(
         )
 
 
-def status_icon(
-    status: str
-):
+def status_icon(status: str):
 
     status = (
         status
@@ -242,12 +241,16 @@ def status_icon(
     if status == "EXTRA":
         return "🔵"
 
+    if status == "COMPLETED":
+        return "🟢"
+
+    if status == "FAILED":
+        return "🔴"
+
     return "⚪"
 
 
-def status_class(
-    status: str
-):
+def status_class(status: str):
 
     status = (
         status
@@ -275,9 +278,7 @@ def show_status(
     text: str = None
 ):
 
-    icon = status_icon(
-        status
-    )
+    icon = status_icon(status)
 
     message = (
         text
@@ -285,9 +286,7 @@ def show_status(
         else f"{icon} {status}"
     )
 
-    css = status_class(
-        status
-    )
+    css = status_class(status)
 
     st.markdown(
         f'<div class="{css}">'
@@ -306,9 +305,7 @@ st.markdown(
 )
 
 
-upload_col1, upload_col2 = (
-    st.columns(2)
-)
+upload_col1, upload_col2 = st.columns(2)
 
 
 # =========================================================
@@ -427,8 +424,7 @@ compare_button = st.button(
 
     type="primary",
 
-    disabled=
-        not valid_upload,
+    disabled=not valid_upload,
 
     use_container_width=True
 )
@@ -585,6 +581,141 @@ st.success(
 
 
 # =========================================================
+# RUN DETAILS
+# =========================================================
+
+run_details = result.get(
+    "run_details",
+    {}
+)
+
+
+# =========================================================
+# COLLAPSED RUN DETAILS
+# =========================================================
+
+with st.expander(
+    "▶ Run Details",
+    expanded=False
+):
+
+    if run_details:
+
+        run_status = run_details.get(
+            "status",
+            "UNKNOWN"
+        )
+
+        # -------------------------------------------------
+        # RUN STATUS
+        # -------------------------------------------------
+
+        st.markdown(
+            f"### {status_icon(run_status)} "
+            f"Run Status: **{run_status}**"
+        )
+
+        # -------------------------------------------------
+        # TIME DETAILS
+        # -------------------------------------------------
+
+        st.markdown(
+            "### 🕐 Processing Information"
+        )
+
+        time_cols = st.columns(3)
+
+        with time_cols[0]:
+
+            st.metric(
+                "Start Time",
+                run_details.get(
+                    "start_time",
+                    "-"
+                )
+            )
+
+        with time_cols[1]:
+
+            st.metric(
+                "End Time",
+                run_details.get(
+                    "end_time",
+                    "-"
+                )
+            )
+
+        with time_cols[2]:
+
+            st.metric(
+                "Processing Time",
+                run_details.get(
+                    "processing_time",
+                    "-"
+                )
+            )
+
+        # -------------------------------------------------
+        # IMAGE DETAILS
+        # -------------------------------------------------
+
+        st.markdown(
+            "### 📁 Image Processing Details"
+        )
+
+        count_cols = st.columns(4)
+
+        with count_cols[0]:
+
+            st.metric(
+                "Actual Images",
+                run_details.get(
+                    "actual_images",
+                    0
+                )
+            )
+
+        with count_cols[1]:
+
+            st.metric(
+                "Expected Images",
+                run_details.get(
+                    "expected_images",
+                    0
+                )
+            )
+
+        with count_cols[2]:
+
+            st.metric(
+                "Total Images Processed",
+                run_details.get(
+                    "total_images_processed",
+                    0
+                )
+            )
+
+        with count_cols[3]:
+
+            st.metric(
+                "Images Compared",
+                run_details.get(
+                    "images_compared",
+                    0
+                )
+            )
+
+    else:
+
+        st.info(
+            "Run details are not available."
+        )
+
+
+st.divider()
+
+
+# =========================================================
 # SUMMARY
 # =========================================================
 
@@ -594,7 +725,7 @@ summary = result[
 
 
 st.markdown(
-    "## 2. Overall Comparison Summary"
+    "## 3. Overall Comparison Summary"
 )
 
 
@@ -649,7 +780,7 @@ st.divider()
 # =========================================================
 
 st.markdown(
-    "## 3. Word Report"
+    "## 4. Word Report"
 )
 
 
@@ -722,7 +853,7 @@ st.divider()
 # =========================================================
 
 st.markdown(
-    "## 4. Detailed Image-by-Image Report"
+    "## 5. Detailed Image-by-Image Report"
 )
 
 
@@ -743,7 +874,6 @@ for index, pair in enumerate(
         status
     )
 
-
     # =====================================================
     # IMAGE HEADER
     # =====================================================
@@ -751,7 +881,6 @@ for index, pair in enumerate(
     st.markdown(
         f"## {icon} {index}. `{filename}`"
     )
-
 
     # =====================================================
     # STATUS
@@ -771,13 +900,11 @@ for index, pair in enumerate(
             "🔴 CHANGED — Differences were detected."
         )
 
-
     # =====================================================
     # METRICS
     # =====================================================
 
     metric_cols = st.columns(4)
-
 
     with metric_cols[0]:
 
@@ -786,7 +913,6 @@ for index, pair in enumerate(
             status
         )
 
-
     with metric_cols[1]:
 
         st.metric(
@@ -794,14 +920,12 @@ for index, pair in enumerate(
             f"{pair['percent_pixels_changed']}%"
         )
 
-
     with metric_cols[2]:
 
         st.metric(
             "Changed Lines",
             pair["changes_count"]
         )
-
 
     with metric_cols[3]:
 
@@ -814,20 +938,17 @@ for index, pair in enumerate(
             language=None
         )
 
-
     # =====================================================
     # ORIGINAL IMAGES
     # =====================================================
 
     st.markdown(
-        "### 4.1 Expected vs Actual"
+        "### 5.1 Expected vs Actual"
     )
-
 
     image_col1, image_col2 = (
         st.columns(2)
     )
-
 
     with image_col1:
 
@@ -842,7 +963,6 @@ for index, pair in enumerate(
             "Expected screenshot"
         )
 
-
     with image_col2:
 
         st.markdown(
@@ -856,20 +976,17 @@ for index, pair in enumerate(
             "Actual screenshot"
         )
 
-
     # =====================================================
     # DIFFERENCE
     # =====================================================
 
     st.markdown(
-        "### 4.2 Difference / Highlighted Image"
+        "### 5.2 Difference / Highlighted Image"
     )
-
 
     st.caption(
         "Red highlighted pixels indicate visual differences."
     )
-
 
     show_image(
         pair[
@@ -878,20 +995,17 @@ for index, pair in enumerate(
         "Difference image"
     )
 
-
     # =====================================================
     # ANNOTATED
     # =====================================================
 
     st.markdown(
-        "### 4.3 Word/Block Status"
+        "### 5.3 Word/Block Status"
     )
-
 
     annotated_col1, annotated_col2 = (
         st.columns(2)
     )
-
 
     with annotated_col1:
 
@@ -906,7 +1020,6 @@ for index, pair in enumerate(
             "Expected annotated image"
         )
 
-
     with annotated_col2:
 
         st.markdown(
@@ -920,7 +1033,6 @@ for index, pair in enumerate(
             "Actual annotated image"
         )
 
-
     st.markdown(
         """
 **Annotation legend**
@@ -932,21 +1044,18 @@ for index, pair in enumerate(
 """
     )
 
-
     # =====================================================
     # LINE BY LINE
     # =====================================================
 
     st.markdown(
-        "### 4.4 Detailed Line-by-Line Changes"
+        "### 5.4 Detailed Line-by-Line Changes"
     )
-
 
     lines = pair.get(
         "lines",
         []
     )
-
 
     if not lines:
 
@@ -972,7 +1081,6 @@ for index, pair in enumerate(
                 line_status
             )
 
-
             # -------------------------------------------------
             # MATCHED LINE
             # -------------------------------------------------
@@ -989,7 +1097,6 @@ for index, pair in enumerate(
 
                 continue
 
-
             # -------------------------------------------------
             # Changed/missing/extra line
             # -------------------------------------------------
@@ -1000,7 +1107,6 @@ for index, pair in enumerate(
                 f"{line_status}"
             )
 
-
             # -------------------------------------------------
             # Full line crops
             # -------------------------------------------------
@@ -1008,7 +1114,6 @@ for index, pair in enumerate(
             line_col1, line_col2 = (
                 st.columns(2)
             )
-
 
             with line_col1:
 
@@ -1033,7 +1138,6 @@ for index, pair in enumerate(
                         "Expected line not present."
                     )
 
-
             with line_col2:
 
                 st.markdown(
@@ -1057,7 +1161,6 @@ for index, pair in enumerate(
                         "Actual line not present."
                     )
 
-
             # -------------------------------------------------
             # Words
             # -------------------------------------------------
@@ -1066,7 +1169,6 @@ for index, pair in enumerate(
                 "words",
                 []
             )
-
 
             changed_words = [
 
@@ -1080,7 +1182,6 @@ for index, pair in enumerate(
                 ] != "matched"
             ]
 
-
             if not changed_words:
 
                 st.info(
@@ -1090,11 +1191,9 @@ for index, pair in enumerate(
 
                 continue
 
-
             st.markdown(
                 "**Word / Block Changes**"
             )
-
 
             for word in changed_words:
 
@@ -1112,13 +1211,11 @@ for index, pair in enumerate(
                     word_status
                 )
 
-
                 st.markdown(
                     f"##### {word_icon} "
                     f"Word {word_number} — "
                     f"{word_status}"
                 )
-
 
                 # =============================================
                 # CHANGED
@@ -1129,7 +1226,6 @@ for index, pair in enumerate(
                     expected_word_col, actual_word_col = (
                         st.columns(2)
                     )
-
 
                     with expected_word_col:
 
@@ -1144,7 +1240,6 @@ for index, pair in enumerate(
                             "Expected crop"
                         )
 
-
                     with actual_word_col:
 
                         st.markdown(
@@ -1158,12 +1253,10 @@ for index, pair in enumerate(
                             "Actual crop"
                         )
 
-
                     st.error(
                         "CHANGED — The pixel content "
                         "of this detected word/block is different."
                     )
-
 
                 # =============================================
                 # MISSING
@@ -1177,7 +1270,6 @@ for index, pair in enumerate(
                         "but not detected in ACTUAL."
                     )
 
-
                     if word.get(
                         "expected_image"
                     ):
@@ -1189,11 +1281,9 @@ for index, pair in enumerate(
                             "Expected missing word/block"
                         )
 
-
                     st.info(
                         "Actual: Not present."
                     )
-
 
                 # =============================================
                 # EXTRA
@@ -1207,7 +1297,6 @@ for index, pair in enumerate(
                         "but not detected in EXPECTED."
                     )
 
-
                     if word.get(
                         "actual_image"
                     ):
@@ -1219,11 +1308,9 @@ for index, pair in enumerate(
                             "Actual extra word/block"
                         )
 
-
                     st.info(
                         "Expected: Not present."
                     )
-
 
     st.divider()
 
@@ -1241,14 +1328,13 @@ missing_details = result.get(
 if missing_details:
 
     st.markdown(
-        "## 5. MISSING Images"
+        "## 6. MISSING Images"
     )
 
     st.warning(
         "These EXPECTED files do not have "
         "a matching ACTUAL file."
     )
-
 
     for item in missing_details:
 
@@ -1260,13 +1346,11 @@ if missing_details:
             f"### 🟠 `{filename}`"
         )
 
-
         show_status(
             "MISSING",
             "🟠 MISSING — Expected image exists, "
             "but no matching actual image was uploaded."
         )
-
 
         if item.get(
             "image"
@@ -1278,7 +1362,6 @@ if missing_details:
                 ],
                 f"Expected image — {filename}"
             )
-
 
         st.divider()
 
@@ -1296,14 +1379,13 @@ extra_details = result.get(
 if extra_details:
 
     st.markdown(
-        "## 6. EXTRA Images"
+        "## 7. EXTRA Images"
     )
 
     st.info(
         "These ACTUAL files do not have "
         "a matching EXPECTED file."
     )
-
 
     for item in extra_details:
 
@@ -1315,13 +1397,11 @@ if extra_details:
             f"### 🔵 `{filename}`"
         )
 
-
         show_status(
             "EXTRA",
             "🔵 EXTRA — Actual image exists, "
             "but no matching expected image was uploaded."
         )
-
 
         if item.get(
             "image"
@@ -1334,7 +1414,6 @@ if extra_details:
                 f"Actual extra image — {filename}"
             )
 
-
         st.divider()
 
 
@@ -1343,7 +1422,7 @@ if extra_details:
 # =========================================================
 
 st.markdown(
-    "## 7. File Matching Information"
+    "## 8. File Matching Information"
 )
 
 
@@ -1469,5 +1548,24 @@ by FastAPI.
 
 The Streamlit frontend does not modify the Word
 report.
+
+---
+
+### Step 8 — Run details
+
+For every comparison run, FastAPI records:
+
+- Start time
+- End time
+- Processing time
+- Actual image count
+- Expected image count
+- Total image count
+- Images compared
+- Run status
+
+The run details are hidden by default.
+
+Click **▶ Run Details** when you want to view them.
 """
     )
